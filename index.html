@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Parapluie - Une autre définition du temps</title>
+
+    <!-- TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+
+    <!-- MobileNet -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+
+    <!-- KNN Classifier -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier@1.2.2/dist/knn-classifier.min.js"></script>
+
+    <!-- OSC -->
+    <script src="https://cdn.jsdelivr.net/npm/osc-js@2.4.1/lib/osc.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 30px;
+            background: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 5px;
+        }
+
+        #status {
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        video {
+            width: 640px;
+            max-width: 90vw;
+            border: 3px solid white;
+            border-radius: 10px;
+        }
+
+        .buttons {
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 15px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+        }
+
+        .closed {
+            background: #d9534f;
+            color: white;
+        }
+
+        .open {
+            background: #5cb85c;
+            color: white;
+        }
+
+        .none {
+            background: #777;
+            color: white;
+        }
+
+        .train {
+            background: #3498db;
+            color: white;
+        }
+
+        #prediction {
+            margin-top: 25px;
+            font-size: 30px;
+            font-weight: bold;
+        }
+
+        #confidence {
+            margin-top: 10px;
+            font-size: 18px;
+        }
+
+        #oscStatus {
+            margin-top: 20px;
+            font-size: 16px;
+        }
+
+        .info {
+            max-width: 700px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #222;
+            border-radius: 10px;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>☔ Une autre définition du temps</h1>
+
+    <div id="status">
+        Chargement de la caméra...
+    </div>
+
+    <video id="webcam" autoplay playsinline></video>
+
+    <div class="buttons">
+
+        <h2>1 — Entraîner le modèle</h2>
+
+        <button class="closed" id="btnClosed">
+            PARAPLUIE FERMÉ
+        </button>
+
+        <button class="open" id="btnOpen">
+            PARAPLUIE OUVERT
+        </button>
+
+        <button class="none" id="btnNone">
+            PAS DE PARAPLUIE
+        </button>
+
+        <br><br>
+
+        <button class="train" id="btnTrain">
+            LANCER LA DÉTECTION
+        </button>
+
+    </div>
+
+    <div id="prediction">
+        Détection : —
+    </div>
+
+    <div id="confidence">
+        Confiance : —
+    </div>
+
+    <div id="oscStatus">
+        OSC : connexion...
+    </div>
+
+    <div class="info">
+
+        <h2>Comment ça fonctionne ?</h2>
+
+        <p>
+            <strong>Classe 0 :</strong> parapluie fermé
+        </p>
+
+        <p>
+            <strong>Classe 1 :</strong> parapluie ouvert
+        </p>
+
+        <p>
+            <strong>Classe 2 :</strong> pas de parapluie
+        </p>
+
+        <p>
+            Quand le parapluie est ouvert, le système envoie :
+        </p>
+
+        <code>/umbrella/state 1</code>
+
+        <p>
+            Quand il est fermé ou absent :
+        </p>
+
+        <code>/umbrella/state 0</code>
+
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
