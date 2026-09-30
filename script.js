@@ -1,6 +1,6 @@
 // ======================================================
 // PROJET PARAPLUIE
-// Webcam + MobileNet + KNN + OSC
+// Webcam + MobileNet + KNN
 // ======================================================
 
 
@@ -30,8 +30,26 @@ let classifier;
 
 let detecting = false;
 
-// Dernier état envoyé par OSC
+// Dernier état envoyé
 let currentState = null;
+// ------------------------------------------------------
+// SON DE PLUIE
+// ------------------------------------------------------
+
+const rainSound = new Audio("rain-on-an-umbrella.mp3");
+rainSound.loop = true;
+rainSound.preload = "auto";
+
+function playRainSound() {
+    rainSound.play().catch(error => {
+        console.error("Erreur lecture pluie :", error);
+    });
+}
+
+function stopRainSound() {
+    rainSound.pause();
+    rainSound.currentTime = 0;
+}
 
 // Correspondance des classes
 const CLASS_NAMES = {
@@ -42,11 +60,11 @@ const CLASS_NAMES = {
 
 
 // ------------------------------------------------------
-// 3. OSC
+// 3. Connexion au pont Node.js
 // ------------------------------------------------------
 
-// Le navigateur se connecte au serveur OSC Node.js
-const osc = new OSC();
+// Le navigateur envoie l'état au Node.js
+const OSC_BRIDGE_URL = "http://localhost:8080/umbrella";
 
 
 // ------------------------------------------------------
@@ -55,7 +73,8 @@ const osc = new OSC();
 
 async function init() {
 
-    statusText.innerText = "Chargement du modèle IA...";
+    statusText.innerText =
+        "Chargement du modèle IA...";
 
     // Création du classifieur KNN
     classifier = knnClassifier.create();
@@ -63,14 +82,15 @@ async function init() {
     // Chargement de MobileNet
     mobilenetModel = await mobilenet.load();
 
-    statusText.innerText = "Modèle IA chargé.";
+    statusText.innerText =
+        "Modèle IA chargé.";
 
     console.log("MobileNet chargé.");
 
     // Caméra
     await startCamera();
 
-    // OSC
+    // Connexion au pont Node.js
     connectOSC();
 }
 
@@ -83,10 +103,11 @@ async function startCamera() {
 
     try {
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: false
-        });
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: false
+            });
 
         video.srcObject = stream;
 
@@ -94,7 +115,8 @@ async function startCamera() {
             video.onloadedmetadata = resolve;
         });
 
-        statusText.innerText = "Caméra OK — modèle prêt.";
+        statusText.innerText =
+            "Caméra OK — modèle prêt.";
 
     } catch (error) {
 
@@ -102,68 +124,70 @@ async function startCamera() {
 
         statusText.innerText =
             "Erreur : impossible d'accéder à la caméra.";
-
     }
 }
 
 
 // ------------------------------------------------------
-// 6. Connexion OSC
+// 6. Connexion au pont
 // ------------------------------------------------------
 
 function connectOSC() {
 
-    try {
+    oscStatus.innerText =
+        "Pont connecté : localhost:8080";
 
-        osc.open();
-
-        oscStatus.innerText =
-            "OSC : connecté à ws://localhost:8080";
-
-    } catch (error) {
-
-        console.error("Erreur OSC :", error);
-
-        oscStatus.innerText =
-            "OSC : non connecté";
-
-    }
+    console.log(
+        "🌐 Pont reconnaissance → Node.js"
+    );
 }
 
 
 // ------------------------------------------------------
-// 7. Envoyer un message OSC
+// 7. Envoyer l'état au pont Node.js
 // ------------------------------------------------------
 
-function sendOSC(state) {
+async function sendOSC(state) {
 
-    // Évite d'envoyer 50 fois le même message
+    // Évite d'envoyer 50 fois le même état
     if (state === currentState) {
         return;
     }
 
     currentState = state;
 
-    console.log("OSC → /umbrella/state", state);
+    console.log(
+        "☂️ RECONNAISSANCE → /umbrella/state",
+        state
+    );
 
     try {
 
-        const message = new OSC.Message(
-            "/umbrella/state",
-            state
-        );
+        await fetch(OSC_BRIDGE_URL, {
 
-        osc.send(message);
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                state: state
+            })
+        });
 
         oscStatus.innerText =
-            "OSC envoyé : /umbrella/state " + state;
+            "Parapluie envoyé : " + state;
 
     } catch (error) {
 
-        console.error("Erreur envoi OSC :", error);
+        console.error(
+            "Erreur connexion Node.js :",
+            error
+        );
 
         oscStatus.innerText =
-            "OSC : erreur d'envoi";
+            "Erreur : Node.js inaccessible";
     }
 }
 
@@ -197,8 +221,8 @@ async function addExample(classId) {
     );
 
     statusText.innerText =
-        "Exemple ajouté à : " + CLASS_NAMES[classId];
-
+        "Exemple ajouté à : " +
+        CLASS_NAMES[classId];
 }
 
 
@@ -206,60 +230,81 @@ async function addExample(classId) {
 // 9. Bouton PARAPLUIE FERMÉ
 // ------------------------------------------------------
 
-btnClosed.addEventListener("mousedown", async () => {
+btnClosed.addEventListener(
+    "mousedown",
+    async () => {
 
-    await addExample(0);
+        await addExample(0);
 
-});
+    }
+);
 
 
 // ------------------------------------------------------
 // 10. Bouton PARAPLUIE OUVERT
 // ------------------------------------------------------
 
-btnOpen.addEventListener("mousedown", async () => {
+btnOpen.addEventListener(
+    "mousedown",
+    async () => {
 
-    await addExample(1);
+        await addExample(1);
 
-});
+    }
+);
 
 
 // ------------------------------------------------------
 // 11. Bouton PAS DE PARAPLUIE
 // ------------------------------------------------------
 
-btnNone.addEventListener("mousedown", async () => {
+btnNone.addEventListener(
+    "mousedown",
+    async () => {
 
-    await addExample(2);
+        await addExample(2);
 
-});
+    }
+);
 
 
 // ------------------------------------------------------
 // 12. Lancer la détection
 // ------------------------------------------------------
 
-btnTrain.addEventListener("click", async () => {
+btnTrain.addEventListener(
+    "click",
+    async () => {
+        rainSound.play()
+            .then(() => {
+                rainSound.pause();
+                rainSound.currentTime = 0;
+                console.log("Audio débloqué");
+            })
+            .catch(error => {
+                console.error("Audio bloqué :", error);
+            });
 
-    const count = classifier.getNumClasses();
+        const count =
+            classifier.getNumClasses();
 
-    if (count < 2) {
+        if (count < 2) {
 
-        alert(
-            "Il faut entraîner au moins 2 classes."
-        );
+            alert(
+                "Il faut entraîner au moins 2 classes."
+            );
 
-        return;
+            return;
+        }
+
+        detecting = true;
+
+        statusText.innerText =
+            "Détection en cours...";
+
+        predictionLoop();
     }
-
-    detecting = true;
-
-    statusText.innerText =
-        "Détection en cours...";
-
-    predictionLoop();
-
-});
+);
 
 
 // ------------------------------------------------------
@@ -278,24 +323,34 @@ async function predictionLoop() {
             mobilenetModel.infer(video, true);
 
         const result =
-            await classifier.predictClass(activation);
+            await classifier.predictClass(
+                activation
+            );
 
         activation.dispose();
 
-        const classId = result.classIndex;
+        const classId =
+            result.classIndex;
 
-        const confidence = result.confidences[classId];
+        const confidence =
+            result.confidences[classId];
 
         const percentage =
             Math.round(confidence * 100);
 
 
+        // ------------------------------------------------
         // Affichage
+        // ------------------------------------------------
+
         predictionText.innerText =
-            "Détection : " + CLASS_NAMES[classId];
+            "Détection : " +
+            CLASS_NAMES[classId];
 
         confidenceText.innerText =
-            "Confiance : " + percentage + "%";
+            "Confiance : " +
+            percentage +
+            "%";
 
 
         console.log(
@@ -305,20 +360,22 @@ async function predictionLoop() {
 
 
         // ------------------------------------------------
-        // OSC
+        // État du parapluie
         // ------------------------------------------------
 
         if (classId === 1) {
 
-            // Parapluie ouvert
-            sendOSC(1);
+    // Parapluie ouvert
+    sendOSC(1);
+    playRainSound();
 
-        } else {
+} else {
 
-            // Fermé OU absent
-            sendOSC(0);
+    // Parapluie fermé OU absent
+    sendOSC(0);
+    stopRainSound();
 
-        }
+}
 
     } catch (error) {
 
@@ -326,11 +383,12 @@ async function predictionLoop() {
             "Erreur pendant la détection :",
             error
         );
-
     }
 
     // Recommencer
-    requestAnimationFrame(predictionLoop);
+    requestAnimationFrame(
+        predictionLoop
+    );
 }
 
 
