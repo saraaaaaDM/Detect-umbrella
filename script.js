@@ -75,6 +75,33 @@ function playThunderSound() {
     });
 }
 
+// ------------------------------------------------------
+// SONS DE GOUTTES
+// ------------------------------------------------------
+
+const dropSounds = [
+    new Audio("Goutte1.mp3"),
+    new Audio("Goutte2.mp3"),
+    new Audio("Goutte3.mp3")
+];
+
+dropSounds.forEach(sound => {
+    sound.preload = "auto";
+});
+
+function playDropSound() {
+    const index = Math.floor(Math.random() * dropSounds.length);
+    const sound = dropSounds[index];
+
+    sound.currentTime = 0;
+    sound.volume = 0.35;
+
+    sound.play().catch(error => {
+        console.error("Erreur lecture goutte :", error);
+    });
+}
+
+
 
 
 // Correspondance des classes
@@ -109,6 +136,14 @@ eventSource.onmessage = (event) => {
             playThunderSound();
         }
 
+        if (message.type === "goutte") {
+    console.log("GOUTTE REÇUE :", message);
+
+    setTimeout(() => {
+        playDropSound();
+    }, Math.max(0, message.delay) * 1000);
+}
+
     } catch (error) {
 
         console.error(
@@ -117,7 +152,6 @@ eventSource.onmessage = (event) => {
         );
     }
 };
-
 
 // ------------------------------------------------------
 // 4. Initialisation
