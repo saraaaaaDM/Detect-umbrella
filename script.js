@@ -51,6 +51,32 @@ function stopRainSound() {
     rainSound.currentTime = 0;
 }
 
+// ------------------------------------------------------
+// SONS DE FOUDRE
+// ------------------------------------------------------
+
+const thunderSounds = [
+    new Audio("foudre.mp3"),
+    new Audio("foudre2.mp3"),
+    new Audio("foudre3.mp3")
+];
+
+thunderSounds.forEach(sound => {
+    sound.preload = "auto";
+});
+
+function playThunderSound() {
+    const index = Math.floor(Math.random() * thunderSounds.length);
+    const sound = thunderSounds[index];
+
+    sound.currentTime = 0;
+    sound.play().catch(error => {
+        console.error("Erreur lecture foudre :", error);
+    });
+}
+
+
+
 // Correspondance des classes
 const CLASS_NAMES = {
     0: "PARAPLUIE FERMÉ",
@@ -65,6 +91,32 @@ const CLASS_NAMES = {
 
 // Le navigateur envoie l'état au Node.js
 const OSC_BRIDGE_URL = "http://localhost:8080/umbrella";
+// ------------------------------------------------------
+// RÉCEPTION DES ÉVÉNEMENTS DE L'INSTALLATION
+// ------------------------------------------------------
+
+const eventSource = new EventSource("http://localhost:8000/evenements");
+
+eventSource.onmessage = (event) => {
+
+    try {
+
+        const message = JSON.parse(event.data);
+
+        console.log("Événement reçu :", message);
+
+        if (message.type === "eclair") {
+            playThunderSound();
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Erreur événement installation :",
+            error
+        );
+    }
+};
 
 
 // ------------------------------------------------------
