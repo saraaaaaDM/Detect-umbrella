@@ -1,188 +1,637 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Une autre idée du temps</title>
 
-    <title>Parapluie - Une autre définition du temps</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier@1.2.2/dist/knn-classifier.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/osc-js@2.4.1/lib/osc.min.js"></script>
 
-    <!-- TensorFlow.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<style>
+:root {
+  --ink: #f8fbfc;
+  --glass: rgba(255, 255, 255, 0.13);
+  --edge: rgba(255, 255, 255, 0.48);
+  --glow: rgba(218, 239, 255, 0.95);
+}
 
-    <!-- MobileNet -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+* {
+  box-sizing: border-box;
+}
 
-    <!-- KNN Classifier -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier@1.2.2/dist/knn-classifier.min.js"></script>
+html, body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
 
-    <!-- OSC -->
-    <script src="https://cdn.jsdelivr.net/npm/osc-js@2.4.1/lib/osc.min.js"></script>
+body {
+  min-height: 100vh;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: #aab6b2;
+}
 
-    <style>
-        body {
-            margin: 0;
-            padding: 30px;
-            background: #111;
-            color: white;
-            font-family: Arial, sans-serif;
-            text-align: center;
-        }
+/* Image de fond légèrement floutée */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -8px;
+  z-index: -2;
+  background-image: url("fond.png");
+  background-size: cover;
+  background-position: center;
+  filter: blur(2px);
+  transform: scale(1.015);
+}
 
-        h1 {
-            margin-bottom: 5px;
-        }
+/* Voile noir pour améliorer le contraste */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: rgba(0, 0, 0, 0.20);
+  pointer-events: none;
+}
 
-        #status {
-            margin-bottom: 20px;
-            font-size: 18px;
-        }
+header {
+  position: absolute;
+  top: 34px;
+  left: 30px;
+  text-align: left;
+}
 
-        video {
-            width: 640px;
-            max-width: 90vw;
-            border: 3px solid white;
-            border-radius: 10px;
-        }
+.eyebrow {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.82);
+}
 
-        .buttons {
-            margin-top: 20px;
-        }
+h1 {
+  margin: 0;
+  font-size: clamp(19px, 2.2vw, 27px);
+  font-weight: 400;
+  letter-spacing: -.025em;
+  text-shadow: 0 2px 15px rgba(30,40,40,.12);
+}
 
-        button {
-            padding: 15px 20px;
-            margin: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            border-radius: 8px;
-            border: none;
-        }
+.subtitle {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(255,255,255,.78);
+}
 
-        .closed {
-            background: #d9534f;
-            color: white;
-        }
+/* Retour caméra : petit, en haut à droite */
+.camera-card {
+  position: fixed;
+  z-index: 5;
+  top: 24px;
+  right: 24px;
+  width: 148px;
+  padding: 7px;
+  border: 1px solid var(--edge);
+  border-radius: 15px;
+  background: rgba(255,255,255,.20);
+  box-shadow: 0 8px 28px rgba(30,40,40,.12),
+              inset 0 1px 0 rgba(255,255,255,.35);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
 
-        .open {
-            background: #5cb85c;
-            color: white;
-        }
+.camera-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 3px 7px;
+  font-size: 10px;
+  color: white;
+}
 
-        .none {
-            background: #777;
-            color: white;
-        }
+.camera-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a7e6c4;
+  box-shadow: 0 0 8px rgba(167,230,196,.8);
+}
 
-        .train {
-            background: #3498db;
-            color: white;
-        }
+video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 9px;
+  background: rgba(30,40,40,.18);
+}
 
-        #prediction {
-            margin-top: 25px;
-            font-size: 30px;
-            font-weight: bold;
-        }
+.camera-caption {
+  margin: 6px 2px 1px;
+  font-size: 9px;
+  color: rgba(255,255,255,.78);
+}
 
-        #confidence {
-            margin-top: 10px;
-            font-size: 18px;
-        }
+/* Statut discret */
+#status {
+  position: fixed;
+  left: 30px;
+  bottom: 25px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,.32);
+  border-radius: 30px;
+  background: rgba(255,255,255,.13);
+  color: rgba(255,255,255,.9);
+  font-size: 10px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
 
-        #oscStatus {
-            margin-top: 20px;
-            font-size: 16px;
-        }
+/* Commandes au centre de l'écran */
+main {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 20px 80px;
+}
 
-        .info {
-            max-width: 700px;
-            margin: 30px auto;
-            padding: 20px;
-            background: #222;
-            border-radius: 10px;
-            text-align: left;
-        }
-    </style>
+.controls {
+  width: min(590px, 100%);
+  padding: 25px 28px 20px;
+  border: 1px solid rgba(255,255,255,.27);
+  border-radius: 28px;
+  background: rgba(255,255,255,.075);
+  box-shadow: 0 20px 60px rgba(40,50,48,.07),
+              inset 0 1px 0 rgba(255,255,255,.24);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  text-align: center;
+}
+
+.section-label {
+  margin: 0 0 27px;
+  color: rgba(255,255,255,.82);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+
+.class-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: clamp(22px, 5vw, 58px);
+}
+
+.class-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  min-width: 100px;
+  color: rgba(255,255,255,.80);
+  font-size: 10px;
+  letter-spacing: .17em;
+  text-transform: uppercase;
+}
+
+/* Boutons en verre */
+button {
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+
+/* Boutons des classes de parapluie */
+.icon-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  padding: 18px;
+  min-width: 130px;
+  min-height: 130px;
+
+  background: rgba(255, 255, 255, 0.12);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 18px;
+
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+/* Icône SVG dans le bouton */
+
+/* Conteneur des boutons */
+.icon-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  width: 150px;
+  height: 150px;
+  padding: 15px;
+
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.12);
+
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+
+  cursor: pointer;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* Grandes icônes SVG */
+.icon-button svg {
+  width: 116px;
+  height: auto;
+  flex-shrink: 0;
+
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+
+  color: white;
+  transition: transform 0.25s ease, color 0.25s ease;
+}
+
+/* Survol */
+.icon-button:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: white;
+  transform: scale(1.06);
+}
+
+/* Bouton actif */
+.icon-button.is-active {
+  background: rgba(255, 255, 255, 0.28);
+  border: 3px solid #ffe082;
+  box-shadow: 0 0 25px rgba(255, 224, 130, 0.4);
+}
+
+/* Icône active */
+.icon-button.is-active svg {
+  color: #ffe082;
+  transform: scale(1.08);
+}
+
+/* Effet au clic */
+.icon-button:active {
+  transform: scale(0.96);
+}
+
+/* Adaptation aux petits écrans */
+@media (max-width: 600px) {
+  .icon-button {
+    width: 120px;
+    height: 120px;
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .icon-button svg {
+    width: 60px;
+    height: 60px;
+  }
+}
+
+
+/* Accessibilité clavier */
+.icon-button:focus-visible {
+  outline: 3px solid #ffe082;
+  outline-offset: 4px;
+}
+
+
+.start-row {
+  margin-top: 30px;
+}
+
+.start-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 20px;
+  color: white;
+  border: 1px solid rgba(255,255,255,.48);
+  border-radius: 99px;
+  background: rgba(255,255,255,.16);
+  box-shadow: 0 6px 20px rgba(30,40,40,.08),
+              inset 0 1px 0 rgba(255,255,255,.3);
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: .04em;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: .2s ease;
+}
+
+.start-button:hover {
+  background: rgba(255,255,255,.26);
+  transform: translateY(-1px);
+}
+
+.start-button svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+
+.readout {
+  margin-top: 21px;
+  font-size: 11px;
+  line-height: 1.8;
+  color: rgba(255,255,255,.84);
+}
+
+#prediction {
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+}
+
+#confidence {
+  font-size: 10px;
+  color: rgba(255,255,255,.72);
+}
+
+#oscStatus {
+  margin-top: 5px;
+  font-size: 10px;
+  color: rgba(255,255,255,.65);
+}
+
+.help {
+  margin: 16px 0 0;
+  font-size: 10px;
+  color: rgba(255,255,255,.76);
+  text-align: center;
+}
+
+.technical {
+  position: fixed;
+  right: 24px;
+  bottom: 20px;
+  max-width: 280px;
+  color: rgba(255,255,255,.8);
+  font-size: 10px;
+  text-align: right;
+}
+
+.technical summary {
+  cursor: pointer;
+  opacity: .8;
+}
+
+.technical-content {
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 12px;
+  background: rgba(60,70,68,.35);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  header {
+    top: 20px;
+    left: 17px;
+  }
+
+  .camera-card {
+    top: 17px;
+    right: 15px;
+    width: 108px;
+  }
+
+  main {
+    padding: 145px 12px 70px;
+  }
+
+  .controls {
+    padding: 23px 12px 18px;
+    border-radius: 23px;
+  }
+
+  .class-buttons {
+    gap: 10px;
+  }
+
+  .class-option {
+    min-width: 0;
+    flex: 1;
+    gap: 12px;
+    font-size: 8px;
+    letter-spacing: .1em;
+  }
+
+  .icon-button {
+    width: min(24vw, 92px);
+    height: min(24vw, 92px);
+  }
+
+  .section-label {
+    font-size: 9px;
+    margin-bottom: 22px;
+  }
+
+  #status {
+    left: 14px;
+    bottom: 14px;
+  }
+
+  .technical {
+    right: 14px;
+    bottom: 14px;
+    max-width: 160px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition: none !important;
+  }
+}
+</style>
 </head>
 
 <body>
 
-    <h1>☔ Une autre définition du temps</h1>
+<header>
+  <p class="eyebrow">Une autre idée du temps</p>
+  <h1>Une pluie de secondes</h1>
+</header>
 
-    <div id="status">
-        Chargement de la caméra...
+<div id="status" role="status" aria-live="polite">
+  <span class="status-dot"></span>
+  Chargement de la caméra...
+</div>
+
+<!-- Caméra discrète en haut à droite -->
+<div class="camera-card">
+  <div class="camera-heading">
+    <span class="camera-dot"></span>
+    Caméra
+  </div>
+  <video id="webcam" autoplay playsinline muted aria-label="Aperçu caméra"></video>
+  <p class="camera-caption">Retour caméra</p>
+</div>
+
+<main>
+  <section class="controls" aria-label="Commandes de détection">
+    <p class="section-label">Reconnaissance du parapluie</p>
+
+    <div class="class-buttons">
+
+  <div class="class-option">
+    <button class="icon-button" id="btnClosed" type="button"
+      aria-label="Parapluie fermé">
+      <img src="ferme.svg"
+           alt="Parapluie fermé">
+    </button>
+    <span>Parapluie fermé</span>
+  </div>
+
+  <div class="class-option">
+    <button class="icon-button" id="btnOpen" type="button"
+      aria-label="Parapluie ouvert">
+      <img src="ouvert.svg"
+           alt="Parapluie ouvert">
+    </button>
+    <span>Parapluie ouvert</span>
+  </div>
+
+  <div class="class-option">
+    <button class="icon-button" id="btnNone" type="button"
+      aria-label="Pas de parapluie">
+      <img src="sans-parapluie.svg"
+           alt="Pas de parapluie">
+    </button>
+    <span>Pas de parapluie</span>
+  </div>
+
+</div>
+
+    <div class="start-row">
+      <button class="start-button" id="btnTrain" type="button">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M4 2.5a.8.8 0 0 1 1.2-.7l8 5a1.4 1.4 0 0 1 0 2.4l-8 5A.8.8 0 0 1 4 13.5z"/>
+        </svg>
+        Lancer la détection
+      </button>
     </div>
 
-    <video id="webcam" autoplay playsinline></video>
-
-    <div class="buttons">
-
-        <h2>1 — Entraîner le modèle</h2>
-
-        <button class="closed" id="btnClosed">
-            PARAPLUIE FERMÉ
-        </button>
-
-        <button class="open" id="btnOpen">
-            PARAPLUIE OUVERT
-        </button>
-
-        <button class="none" id="btnNone">
-            PAS DE PARAPLUIE
-        </button>
-
-        <br><br>
-
-        <button class="train" id="btnTrain">
-            LANCER LA DÉTECTION
-        </button>
-
+    <div class="readout" aria-live="polite">
+      <div id="prediction">Détection : —</div>
+      <div id="confidence">Confiance : —</div>
+      <div id="oscStatus">OSC : connexion...</div>
     </div>
+  </section>
 
-    <div id="prediction">
-        Détection : —
-    </div>
+</main>
 
-    <div id="confidence">
-        Confiance : —
-    </div>
+<details class="technical">
+  <summary>Informations techniques</summary>
+  <div class="technical-content">
+    <p><strong>Classe 0 :</strong> parapluie fermé</p>
+    <p><strong>Classe 1 :</strong> parapluie ouvert</p>
+    <p><strong>Classe 2 :</strong> pas de parapluie</p>
+    <p>Parapluie ouvert : <code>/umbrella/state 1</code></p>
+    <p>Parapluie fermé ou absent : <code>/umbrella/state 0</code></p>
+  </div>
+</details>
 
-    <div id="oscStatus">
-        OSC : connexion...
-    </div>
+<!-- On conserve le script de détection existant -->
+<script src="script.js"></script>
 
-    <div class="info">
+<script>
+(() => {
+  const prediction = document.getElementById("prediction");
+  const status = document.getElementById("status");
 
-        <h2>Comment ça fonctionne ?</h2>
+  const buttons = {
+    closed: document.getElementById("btnClosed"),
+    open: document.getElementById("btnOpen"),
+    none: document.getElementById("btnNone")
+  };
 
-        <p>
-            <strong>Classe 0 :</strong> parapluie fermé
-        </p>
+  function updateVisualState() {
+    const text = (prediction.textContent || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
 
-        <p>
-            <strong>Classe 1 :</strong> parapluie ouvert
-        </p>
+    Object.values(buttons).forEach(button => {
+      button.classList.remove("is-active");
+      button.setAttribute("aria-pressed", "false");
+    });
 
-        <p>
-            <strong>Classe 2 :</strong> pas de parapluie
-        </p>
+    if (text.includes("parapluie ferme")) {
+      buttons.closed.classList.add("is-active");
+      buttons.closed.setAttribute("aria-pressed", "true");
+    } else if (text.includes("parapluie ouvert")) {
+      buttons.open.classList.add("is-active");
+      buttons.open.setAttribute("aria-pressed", "true");
+    } else if (text.includes("pas de parapluie")) {
+      buttons.none.classList.add("is-active");
+      buttons.none.setAttribute("aria-pressed", "true");
+    }
+  }
 
-        <p>
-            Quand le parapluie est ouvert, le système envoie :
-        </p>
+  new MutationObserver(updateVisualState).observe(prediction, {
+    childList: true,
+    characterData: true,
+    subtree: true
+  });
 
-        <code>/umbrella/state 1</code>
+  updateVisualState();
 
-        <p>
-            Quand il est fermé ou absent :
-        </p>
+  new MutationObserver(() => {
+    const ready = (status.textContent || "")
+      .toLowerCase()
+      .includes("caméra ok");
 
-        <code>/umbrella/state 0</code>
-
-    </div>
-
-    <script src="script.js"></script>
+    status.dataset.ready = String(ready);
+  }).observe(status, {
+    childList: true,
+    characterData: true,
+    subtree: true
+  });
+})();
+</script>
 
 </body>
-
 </html>
